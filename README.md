@@ -663,6 +663,66 @@ buttonList      : Defines button list to array {Array}
                     // ['save', 'template'],
                     // '/', Line break
                   ]
+
+                  ex) When do not use group.
+                  // If you don't want to use a group, put all the buttons in one array.
+                  [
+                    ['undo', 'redo', 'bold', 'underline', 'fontColor', 'table', 'link', 'image', 'video']
+                  ]
+
+                  ex) More button: 
+                  // The more button is defined as a string starting with a colon.(":").
+                  // :Identifier - Title attribute - Button's innerHTML
+                  /**
+                   * "Identifier": The button's identifier. Please specify uniquely.
+                   * "Title attribute": Title attribute of the button to be displayed as a tooltip.
+                   * "Button's innerHTML": Define the button's "innerHTML".
+                   * default.xxx -> Use the attributes of "defaultIcons".
+                   * text.xxx -> Use the text.
+                   * xxx -> HTML
+                   */
+                  [
+                    ['undo', 'redo', 'removeFormat'],
+                    [
+                        ':moreText-More Text-default.more_text', 'bold', 'underline', 'italic',
+                        'subscript', 'superscript', 'fontColor', 'hiliteColor', 'textStyle'
+                    ],
+                    [
+                        ':moreParagraph-More Paragraph-default.more_paragraph', 'font', 'fontSize', 'formatBlock',
+                        'paragraphStyle', 'blockquote', 'align', 'horizontalRule', 'list', 'lineHeight'
+                    ],
+                    [':moreRich-More Rich-default.more_plus', 'table', 'link', 'image', 'video', 'math'],
+                    [':moreView-View-text.View', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                    [':moreOthers-More Others-<i class="xxx"></i>', 'save', 'template'],
+                  ]
+
+                  ex) Responsive setting: 
+                  // You can specify the arrangement of buttons according to the screen size in advance.
+                  // Responsive settings start with a percent sign.("%").
+                  // %510(Number based on "px")
+                  [
+                    // Default
+                    ['undo', 'redo'],
+                    ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                    // (min-width:992px)
+                    ['%992', [
+                        ['undo', 'redo'],
+                        ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                        [':moreCommand1-More Rich-default.more_horizontal', 'table', 'link', 'image', 'video', 'math'],
+                        [':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                    ]],
+                    // (min-width:768px)
+                    ['%768', [
+                        ['undo', 'redo'],
+                        [
+                            ':moreText-More Text-default.more_text', 'bold', 'underline', 'italic',
+                            'subscript', 'superscript', 'fontColor', 'hiliteColor', 'textStyle'
+                        ],
+                        [':moreCommand1-More Rich-default.more_horizontal', 'table', 'link', 'image', 'video', 'math'],
+                        [':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                    ]]
+                  ]
+                  
 ```
 
 ## Functions
@@ -674,7 +734,14 @@ const editor = suneditor.create('example');
 editor.core; // core object (The core object contains "util" and "functions".)
 editor.util; // util object
 
-// Add or reset option property
+// Reset the buttons on the toolbar. (Editor is not reloaded)
+// You cannot set a new plugin for the button.
+editor.setToolbarButtons([
+    [':moreText-More Text-default.more_horizontal', 'bold', 'underline', 'strike', 'subscript', 'superscript'],
+    ['undo', 'redo']
+]);
+
+// Add or reset option property. (Editor is reloaded)
 editor.setOptions({
     minHeight: '300px',
     buttonList: [
@@ -837,6 +904,7 @@ editor.onDrop = function (e, core) { console.log('onDrop', e) }
 
 // Called before the image is uploaded
 // If false is returned, no image upload is performed.
+// If new fileList are returned,  replaced the previous fileList
 /**
  * files: Files array
  * info: {
@@ -849,15 +917,19 @@ editor.onDrop = function (e, core) { console.log('onDrop', e) }
  * - element: If isUpdate is true, the currently selected image.
  * }
  * core: Core object
- * return {Boolean}
+ * return {Boolean|Array}
  */
 editor.onImageUploadBefore: function (files, info, core) {
     console.log('files', files);
     console.log('info', info);
-    return Boolean
+
+    return Boolean;
+    // or
+    return [] // (new files);
 }
 // Called before the video is uploaded
 // If false is returned, no video(iframe, video) upload is performed.
+// If new fileList are returned,  replaced the previous fileList
 /** 
  * files: Files array
  * info: {
@@ -873,10 +945,14 @@ editor.onImageUploadBefore: function (files, info, core) {
 editor.onVideoUploadBefore: function (files, info, core) {
     console.log('files', files);
     console.log('info', info);
-    return Boolean
+    
+    return Boolean;
+    // or
+    return [] // (new files);
 }
 // Called before the audio is uploaded
 // If false is returned, no audio upload is performed.
+// If new fileList are returned,  replaced the previous fileList
 /** 
 * files: Files array
 * info: {
@@ -889,7 +965,10 @@ editor.onVideoUploadBefore: function (files, info, core) {
 editor.onAudioUploadBefore: function (files, info, core) {
     console.log('files', files);
     console.log('info', info);
-    return Boolean
+
+    return Boolean;
+    // or
+    return [] // (new files);
 }
 
 // Called when the image is uploaded, updated, deleted.
