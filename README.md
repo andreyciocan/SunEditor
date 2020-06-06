@@ -286,9 +286,9 @@ suneditor.create('sample', {
 ## Options
 ```java
 plugins: [
-    // command
+    /** command */
     blockquote,
-    // Submenu
+    /** Submenu */
     align,
     font,
     fontColor,
@@ -302,13 +302,19 @@ plugins: [
     table,
     template,
     textStyle,
-    // Dialog
+    /** Dialog */
     image,
     link,
     video,
     audio,
-    math // You must add the 'katex' library at options to use the 'math' plugin.
-]               : Plugins array.     default: null {Array}
+    math, // You must add the 'katex' library at options to use the 'math' plugin.
+    /** File browser */
+    // You must add the "imageGalleryUrl".
+    // A button is added to the image modal.
+    // You can also use image gallery by adding it directly to the button list. (You must add "image" plugin.)
+    imageGallery
+]
+: Plugins array.     default: null {Array}
 
 // Whitelist--------------------------------------å---------------------------------------------------------
 // _defaultTagsWhitelist : 'br|p|div|pre|blockquote|h[1-6]|ol|ul|li|hr|figure|figcaption|img|iframe|audio|video|table|thead|tbody|tr|th|td|a|b|strong|var|i|em|u|ins|s|span|strike|del|sub|sup'
@@ -329,7 +335,11 @@ attributesWhitelist   : Add attributes whitelist of tags that should be kept und
 lang            : language object.   default : en {Object}
 mode            : The mode of the editor ('classic', 'inline', 'balloon', 'balloon-always'). default: 'classic' {String}
 toolbarWidth    : The width of the toolbar. Applies only when the editor mode is 
-                  'inline' or 'balloon' mode. default: 'auto' {Number|String}
+                  'inline' or 'balloon' mode.     default: 'auto' {Number|String}
+toolbarContainer: A custom HTML selector placing the toolbar inside.
+                  The class name of the element must be 'sun-editor'.
+                  Element or querySelector argument.     default: null {Element|String}
+                  ex) document.querySelector('#id') || '#id'
 stickyToolbar   : Reference height value that should be changed to sticky toolbar mode.
                   It can also be used when there is another fixed toolbar at the top.
                   Set to 0, '0px', '50px', etc.
@@ -517,7 +527,7 @@ imageUrlInput   : Choose whether to create a image url input tag in the image up
                   If the value of imageFileInput is false, it will be unconditionally.   default: true {Boolean}
 imageUploadHeader : Http Header when uploading images.              default: null {Object}
 imageUploadUrl  : The image upload to server mapping address.       default: null {String}
-                  ex) "/editor/uploadImage.ajax"
+                  ex) "/editor/uploadImage"
                   request format: {
                             "file-0": File,
                             "file-1": File
@@ -535,6 +545,23 @@ imageUploadUrl  : The image upload to server mapping address.       default: nul
                         }
 imageUploadSizeLimit: The size of the total uploadable images (in bytes).
                       Invokes the "onImageUploadError" method.  default: null {Number}
+// Image - image gallery
+imageGalleryUrl     : The url of the image gallery, if you use the image gallery.
+                      When "imageUrlInput" is true, an image gallery button is created in the image modal.
+                      You can also use it by adding "imageGallery" to the button list.   default: null {String}
+                      ex) "/editor/getGallery"
+                      response format: {
+                            "errorMessage": "insert error message",
+                            "result": [
+                                {
+                                    "src": "/download/editorImg/test_image.jpg", // @Require
+                                    "name": "Test image", // @Option - default: src.split('/').pop()
+                                    "alt": "Alt text", // @Option - default: src.split('/').pop()
+                                    "tag": "Tag name" // @Option
+                                }
+                            ]
+                        }
+                      You can redefine the "plugins.imageGallery.drawItems" method.
 
 // Video----------------------------------------------------------------------------------------------------------
 videoResizing   : Can resize the video (iframe, video).                         default: true {Boolean}
@@ -567,7 +594,7 @@ videoUrlInput   : Choose whether to create a video url input tag in the video up
                   If the value of videoFileInput is false, it will be unconditionally.   default: true {Boolean}
 videoUploadHeader : Http Header when uploading videos.              default: null {Object}
 videoUploadUrl  : The video upload to server mapping address.       default: null {String}
-                  ex) "/editor/uploadVideo.ajax"
+                  ex) "/editor/uploadVideo"
                   request format: {
                             "file-0": File,
                             "file-1": File
@@ -594,7 +621,7 @@ audioUrlInput   : Choose whether to create a audio url input tag in the audio up
                   If the value of audioFileInput is false, it will be unconditionally.   default: true {Boolean}
 audioUploadHeader : Http Header when uploading audios.              default: null {Object}
 audioUploadUrl  : The audio upload to server mapping address.       default: null {String}
-                  ex) "/editor/uploadAudio.ajax"
+                  ex) "/editor/uploadAudio"
                   request format: {
                             "file-0": File,
                             "file-1": File
@@ -618,6 +645,9 @@ tableCellControllerPosition : Define position to the table cell controller('cell
 
 // Key actions----------------------------------------------------------------------------------------------------
 tabDisable      : If true, disables the interaction of the editor and tab key.  default: false {Boolean}
+shortcutsDisable: You can disable shortcuts.    default: [] {Array}
+                  ex) ['bold', 'strike', 'underline', 'italic', 'undo', 'indent']
+shortcutsHint   : If false, hide the shortcuts hint.    default: true {Boolean}
 
 // Defining save button-------------------------------------------------------------------------------------------
 callBackSave    : Callback functions that is called when the Save button is clicked. 
@@ -657,7 +687,7 @@ buttonList      : Defines button list to array {Array}
                     ['removeFormat'],
                     ['outdent', 'indent'],
                     // ['align', 'horizontalRule', 'list', 'lineHeight'],
-                    // ['table', 'link', 'image', 'video', 'math'],
+                    // ['table', 'link', 'image', 'video', 'math'/** ,'imageGallery' */],
                     ['fullScreen', 'showBlocks', 'codeView'],
                     ['preview', 'print'],
                     // ['save', 'template'],
@@ -668,6 +698,13 @@ buttonList      : Defines button list to array {Array}
                   // If you don't want to use a group, put all the buttons in one array.
                   [
                     ['undo', 'redo', 'bold', 'underline', 'fontColor', 'table', 'link', 'image', 'video']
+                  ]
+
+                  ex) Alignment of button groups.
+                  // Set "-[align]" to the first item in the group. (default: left)
+                  [
+                      ['bold', 'underline', 'italic', 'strike'],
+                      ['-right', 'undo', 'redo']
                   ]
 
                   ex) More button: 
@@ -693,7 +730,7 @@ buttonList      : Defines button list to array {Array}
                     ],
                     [':moreRich-More Rich-default.more_plus', 'table', 'link', 'image', 'video', 'math'],
                     [':moreView-View-text.View', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
-                    [':moreOthers-More Others-<i class="xxx"></i>', 'save', 'template'],
+                    ['-right', ':moreOthers-More Others-<i class="xxx"></i>', 'save', 'template'], // Used with alignment
                   ]
 
                   ex) Responsive setting: 
@@ -709,7 +746,7 @@ buttonList      : Defines button list to array {Array}
                         ['undo', 'redo'],
                         ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
                         [':moreCommand1-More Rich-default.more_horizontal', 'table', 'link', 'image', 'video', 'math'],
-                        [':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                        ['-right', ':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
                     ]],
                     // (min-width:768px)
                     ['%768', [
@@ -719,7 +756,7 @@ buttonList      : Defines button list to array {Array}
                             'subscript', 'superscript', 'fontColor', 'hiliteColor', 'textStyle'
                         ],
                         [':moreCommand1-More Rich-default.more_horizontal', 'table', 'link', 'image', 'video', 'math'],
-                        [':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                        ['-right', ':moreCommand2-Insert-default.more_vertical', 'fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
                     ]]
                   ]
                   
@@ -1073,6 +1110,24 @@ editor.imageUploadHandler = function (xmlHttpRequest, info, core) {
     }
 }
 
+// An event when toggling between code view and wysiwyg view.
+/**
+ * isCodeView: Whether the current code view mode
+ * core: Core object
+ */
+editor.toggleCodeView = function (isCodeView, core) {
+    console.log('isCodeView', isCodeView);
+}
+
+// An event when toggling full screen.
+/**
+ * isFullScreen: Whether the current full screen mode
+ * core: Core object
+ */
+editor.toggleFullScreen = function (isFullScreen, core) {
+    console.log('isFullScreen', isFullScreen);
+}
+
 // Called just before the inline toolbar is positioned and displayed on the screen.
 /**
  * toolbar: Toolbar Element
@@ -1167,6 +1222,10 @@ editor.showController = function (name, controllers, core) {
         </tr>
         <tr>
             <td align="left">textStyle</td>
+        </tr>
+        <tr>
+            <td align="left">imageGallery</td>
+            <td align="left"><strong>fileBrowser</strong></td>
         </tr>
     </tbody>
 </table>

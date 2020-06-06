@@ -540,6 +540,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             menu.style.top = '-10000px';
             menu.style.visibility = 'hidden';
             menu.style.display = 'block';
+            menu.style.height = '';
             util.addClass(element, 'on');
 
             const toolbar = this.context.element.toolbar;
@@ -550,23 +551,46 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             if (overLeft < 0) menu.style.left = (l + overLeft) + 'px';
             else menu.style.left = l + 'px';
 
-            let t = 0, bt = 0;
+            // get element top
+            let t = 0;
             let offsetEl = element;
             while (offsetEl && offsetEl !== toolbar) {
                 t += offsetEl.offsetTop;
                 offsetEl = offsetEl.offsetParent;
             }
-            bt = t;
 
+            const bt = t;
             if (this._isBalloon) {
                 t += toolbar.offsetTop + element.offsetHeight;
             } else {
                 t -= element.offsetHeight;
             }
 
-            const space = t + menu.offsetHeight - context.element.wysiwyg.offsetHeight + 3;
-            if (space > 0 && event._getPageBottomSpace() < space) {
-                menu.style.top = (-1 * (menu.offsetHeight + 3)) + 'px';
+            // set menu position
+            const toolbarTop = event._getEditorOffsets(context.element.toolbar).top;
+            let menuHeight = menu.offsetHeight;
+            let el = context.element.topArea;
+            let scrollTop = 0;
+            while (!!el) {
+                scrollTop += el.scrollTop;
+                el = el.parentElement;
+            }
+
+            const menuHeight_bottom = _w.innerHeight - (toolbarTop - scrollTop + bt + element.parentElement.offsetHeight);
+            if (menuHeight_bottom < menuHeight) {
+                let menuTop = -1 * (menuHeight - bt + 3);
+                const insTop = toolbarTop - scrollTop + menuTop;
+                const menuHeight_top = menuHeight + (insTop < 0 ? insTop : 0);
+                
+                if (menuHeight_top > menuHeight_bottom) {
+                    menu.style.height = menuHeight_top + 'px';
+                    menuTop = -1 * (menuHeight_top - bt + 3);
+                } else {
+                    menu.style.height = menuHeight_bottom + 'px';
+                    menuTop = bt + element.parentElement.offsetHeight;
+                }
+
+                menu.style.top = menuTop + 'px';
             } else {
                 menu.style.top = (bt + element.parentElement.offsetHeight) + 'px';
             }
@@ -793,8 +817,17 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
          * @returns {Node}
          */
         getSelectionNode: function () {
-            if (!this._variable._selectionNode || util.isWysiwygDiv(this._variable._selectionNode)) this._editorRange();
-            return this._variable._selectionNode || context.element.wysiwyg.firstChild;
+            if (util.isWysiwygDiv(this._variable._selectionNode)) this._editorRange();
+            if (!this._variable._selectionNode) {
+                const selectionNode = util.getChildElement(context.element.wysiwyg.firstChild, function (current) { return current.childNodes.length === 0 || current.nodeType === 3; }, false);
+                if (!selectionNode) {
+                    this._editorRange();
+                } else {
+                    this._variable._selectionNode = selectionNode;
+                    return selectionNode;
+                }
+            }
+            return this._variable._selectionNode;
         },
 
         /**
@@ -853,12 +886,12 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             let tempCon, tempOffset, tempChild;
 
             if (util.isFormatElement(startCon)) {
-                startCon = startCon.childNodes[startOff];
+                startCon = startCon.childNodes[startOff] || startCon.firstChild;
                 startOff = 0;
             }
             if (util.isFormatElement(endCon)) {
-                endCon = endCon.childNodes[endOff];
-                endOff = 0;
+                endCon = endCon.childNodes[endOff] || endCon.lastChild;
+                endOff = endCon.textContent.length;
             }
 
             // startContainer
@@ -1403,7 +1436,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                     startCon = endCon = commonCon;
                 } else {
                     startCon = endCon = childNodes[0];
-                    if (util.isBreak(startCon)) {
+                    if (util.isBreak(startCon) || util.onlyZeroWidthSpace(startCon)) {
                         return {
                             container: startCon,
                             offset: 0
@@ -2010,11 +2043,11 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             }
 
             if (util.isFormatElement(startCon)) {
-                startCon = startCon.childNodes[startOff];
+                startCon = startCon.childNodes[startOff] || startCon.firstChild;
                 startOff = 0;
             }
             if (util.isFormatElement(endCon)) {
-                endCon = endCon.childNodes[endOff];
+                endCon = endCon.childNodes[endOff] || endCon.lastChild;
                 endOff = endCon.textContent.length;
             }
 
@@ -3475,7 +3508,9 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                 } else if (/container/.test(display) && (this._menuTray[command] === null || target !== this.containerActiveButton)) {
                     this.callPlugin(command, this.containerOn.bind(this, target), target);
                     return;
-                }                
+                } else if (/fileBrowser/.test(display)) {
+                    this.callPlugin(command, this.plugins[command].open.bind(this, null), target);
+                }
             } // default command
             else if (command) {
                 this.commandHandler(target, command);
@@ -3697,6 +3732,8 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             }
 
             this._checkPlaceholder();
+
+            if (typeof functions.toggleCodeView === 'function') functions.toggleCodeView(this._variable.isCodeView, core);
         },
 
         /**
@@ -3840,6 +3877,8 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                 event.onScroll_window();
                 util.changeElement(element.firstElementChild, icons.expansion);
             }
+
+            if (typeof functions.toggleFullScreen === 'function') functions.toggleFullScreen(this._variable.isFullScreen, core);
         },
 
         /**
@@ -4371,7 +4410,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
 
             this._fileManager.queryString = this._fileManager.tags.join(',');
             this._fileManager.regExp = new _w.RegExp('^(' +  this._fileManager.tags.join('|') + ')$', 'i');
-            this._fileManager.pluginRegExp = new _w.RegExp('^(' +  filePluginRegExp.join('|') + ')$', 'i');
+            this._fileManager.pluginRegExp = new _w.RegExp('^(' +  (filePluginRegExp.length === 0 ? 'undefined' : filePluginRegExp.join('|')) + ')$', 'i');
             
             // cache editor's element
             this._variable._originCssText = context.element.topArea.style.cssText;
@@ -4615,34 +4654,48 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                     command = 'selectAll';
                     break;
                 case 'B':
-                    command = 'STRONG';
+                    if (options.shortcutsDisable.indexOf('bold') === -1) {
+                        command = 'STRONG';
+                    }
                     break;
                 case 'S':
-                    if (shift) {
+                    if (shift && options.shortcutsDisable.indexOf('strike') === -1) {
                         command = 'DEL';
                     }
                     break;
                 case 'U':
-                    command = 'U';
+                    if (options.shortcutsDisable.indexOf('underline') === -1) {
+                        command = 'U';
+                    }
                     break;
                 case 'I':
-                    command = 'EM';
+                    if (options.shortcutsDisable.indexOf('italic') === -1) {
+                        command = 'EM';
+                    }
                     break;
                 case 'Z':
-                    if (shift) {
-                        command = 'redo';
-                    } else {
-                        command = 'undo';
+                    if (options.shortcutsDisable.indexOf('undo') === -1) {
+                        if (shift) {
+                            command = 'redo';
+                        } else {
+                            command = 'undo';
+                        }
                     }
                     break;
                 case 'Y':
-                    command = 'redo';
+                    if (options.shortcutsDisable.indexOf('undo') === -1) {
+                        command = 'redo';
+                    }
                     break;
                 case '[':
-                    command = 'outdent';
+                    if (options.shortcutsDisable.indexOf('indent') === -1) {
+                        command = 'outdent';
+                    }
                     break;
                 case ']':
-                    command = 'indent';
+                    if (options.shortcutsDisable.indexOf('indent') === -1) {
+                        command = 'indent';
+                    }
                     break;
             }
 
@@ -4806,7 +4859,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                 event._hideToolbar();
             }
 
-            if (functions.onMouseDown) functions.onMouseDown(e, core);
+            if (typeof functions.onMouseDown === 'function') functions.onMouseDown(e, core);
         },
 
         onClick_wysiwyg: function (e) {
@@ -4864,7 +4917,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             }
 
             if (core._isBalloon) _w.setTimeout(event._toggleToolbarBalloon);
-            if (functions.onClick) functions.onClick(e, core);
+            if (typeof functions.onClick === 'function') functions.onClick(e, core);
         },
 
         _balloonDelay: null,
@@ -5051,7 +5104,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             // history stack
             core.history.push(true);
 
-            if (functions.onInput) functions.onInput(e, core);
+            if (typeof functions.onInput === 'function') functions.onInput(e, core);
         },
 
         _onShortcutKey: false,
@@ -5586,7 +5639,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
                 core.setRange(zeroWidth, 1, zeroWidth, 1);
             }
 
-            if (functions.onKeyDown) functions.onKeyDown(e, core);
+            if (typeof functions.onKeyDown === 'function') functions.onKeyDown(e, core);
         },
 
         onKeyUp_wysiwyg: function (e) {
@@ -5652,21 +5705,21 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             // history stack
             core.history.push(true);
 
-            if (functions.onKeyUp) functions.onKeyUp(e, core);
+            if (typeof functions.onKeyUp === 'function') functions.onKeyUp(e, core);
         },
 
         onScroll_wysiwyg: function (e) {
             core.controllersOff();
             core._lineBreaker.style.display = 'none';
             if (core._isBalloon) event._hideToolbar();
-            if (functions.onScroll) functions.onScroll(e, core);
+            if (typeof functions.onScroll === 'function') functions.onScroll(e, core);
         },
 
         onFocus_wysiwyg: function (e) {
             if (core._antiBlur) return;
             core.hasFocus = true;
             if (core._isInline) event._showToolbarInline();
-            if (functions.onFocus) functions.onFocus(e, core);
+            if (typeof functions.onFocus === 'function') functions.onFocus(e, core);
         },
 
         onBlur_wysiwyg: function (e) {
@@ -5674,7 +5727,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             core.hasFocus = false;
             core.controllersOff();
             if (core._isInline || core._isBalloon) event._hideToolbar();
-            if (functions.onBlur) functions.onBlur(e, core);
+            if (typeof functions.onBlur === 'function') functions.onBlur(e, core);
         },
 
         onMouseDown_resizingBar: function (e) {
@@ -5719,6 +5772,14 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             }
 
             if (context.element.toolbar.offsetWidth === 0) return;
+
+            if (context.fileBrowser && context.fileBrowser.area.style.display === 'block') {
+                context.fileBrowser.body.style.maxHeight = (_w.innerHeight - context.fileBrowser.header.offsetHeight - 50) + 'px';
+            }
+
+            if (core.submenuActiveButton && core.submenu) {
+                core._setMenuPosition(core.submenuActiveButton, core.submenu);
+            }
 
             if (core._variable.isFullScreen) {
                 core._variable.innerHeight_fullScreen += (_w.innerHeight - context.element.toolbar.offsetHeight) - core._variable.innerHeight_fullScreen;
@@ -5816,12 +5877,19 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             const range = core.getRange();
             const sCell = util.getRangeFormatElement(range.startContainer);
             const eCell = util.getRangeFormatElement(range.endContainer);
+            const sIsCell = util.isCell(sCell);
+            const eIsCell = util.isCell(eCell);
 
-            if (util.isCell(sCell) && util.isCell(eCell) && !sCell.previousElementSibling && !eCell.nextElementSibling) {
-                const table = util.getParentElement(sCell, util.isComponent);
-                util.removeItem(table);
-                core.nativeFocus();
-                return true;
+            if (((sIsCell && !sCell.previousElementSibling && !sCell.parentElement.previousElementSibling) || (eIsCell && !eCell.nextElementSibling && !eCell.parentElement.nextElementSibling)) && sCell !== eCell) {
+                if (!sIsCell) {
+                    util.removeItem(util.getParentElement(eCell, util.isComponent));
+                } else if (!eIsCell) {
+                    util.removeItem(util.getParentElement(sCell, util.isComponent));
+                } else {
+                    util.removeItem(util.getParentElement(sCell, util.isComponent));
+                    core.nativeFocus();
+                    return true;
+                }
             }
 
             return false;
@@ -5868,8 +5936,15 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
         },
 
         _setClipboardData: function (e, plainText, cleanData) {
+            // MS word
+            if (/class=["']*Mso(Normal|List)/i.test(cleanData) || /content=["']*Word.Document/i.test(cleanData) || /content=["']*OneNote.File/i.test(cleanData)) {
+                cleanData = cleanData.replace(/\n/g, ' ');
+                plainText = plainText.replace(/\n/g, ' ');
+            } else {
+                plainText = plainText.replace(/\n/g, '');
+            }
+
             cleanData = core.cleanHTML(cleanData, core.pasteTagsWhitelistRegExp);
-            plainText = plainText.replace(/\n/g, '');
             const maxCharCount = core._charCount(options.charCounterType === 'byte-html' ? cleanData : plainText);
 
             if (typeof functions.onPaste === 'function' && !functions.onPaste(e, cleanData, maxCharCount, core)) {
@@ -6168,6 +6243,20 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
         showController: null,
 
         /**
+         * @description An event when toggling between code view and wysiwyg view.
+         * @param {Boolean} isCodeView Whether the current code view mode
+         * @param {Object} core Core object
+         */
+        toggleCodeView: null,
+
+        /**
+         * @description An event when toggling full screen.
+         * @param {Boolean} isFullScreen Whether the current full screen mode
+         * @param {Object} core Core object
+         */
+        toggleFullScreen: null,
+
+        /**
          * @description It replaces the default callback function of the image upload
          * @param {Object} response Response object
          * @param {Object} info Input information
@@ -6286,7 +6375,7 @@ export default function (context, pluginCallButtons, plugins, lang, options, _ic
             core.submenuOff();
             core.containerOff();
             
-            const newToolbar = _Constructor._createToolBar(_d, buttonList, core.plugins, options.lang);
+            const newToolbar = _Constructor._createToolBar(_d, buttonList, core.plugins, options);
             _responsiveButtons = newToolbar.responsiveButtons;
             core._moreLayerActiveButton = null;
             core._cachingButtons();

@@ -57,6 +57,7 @@
             math: 'Matematică',
             image: 'Imagine',
             video: 'Video',
+            audio: 'Audio',
             fullScreen: 'Tot ecranul',
             showBlocks: 'Arată blocuri',
             codeView: 'Vizualizare cod',
@@ -72,7 +73,8 @@
             template: 'Template',
             lineHeight: 'Înălțime linie',
             paragraphStyle: 'Stil paragraf',
-            textStyle: 'Stil text'
+            textStyle: 'Stil text',
+            imageGallery: 'Galerie de imagini'
         },
         dialogBox: {
             linkBox: {
@@ -102,6 +104,10 @@
                 title: 'Inserează Audio',
                 file: 'Selectează',
                 url: 'URL Audio'
+            },
+            browser: {
+                tags: 'Etichete',
+                search: 'Căutareim',
             },
             caption: 'Inserează descriere',
             close: 'Închide',
